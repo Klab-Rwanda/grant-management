@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import { AppLayout } from './components/layout/AppLayout';
+import { LandingPage } from './pages/LandingPage';
 
 // Auth pages
 import { LoginPage, RegisterPage, ForgotPasswordPage } from './pages/auth/AuthPages';
@@ -39,8 +40,8 @@ export const App: React.FC = () => {
     <AppProvider>
       <BrowserRouter>
         <Routes>
-          {/* Default redirect to startup dashboard */}
-          <Route path="/" element={<Navigate to="/startup/dashboard" replace />} />
+          {/* Public homepage */}
+          <Route path="/" element={<LandingPage />} />
 
           {/* Auth Routes */}
           <Route path="/auth/login" element={<LoginPage />} />
@@ -92,7 +93,7 @@ export const App: React.FC = () => {
           </Route>
 
           {/* Fallback route */}
-          <Route path="*" element={<Navigate to="/startup/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AppProvider>
