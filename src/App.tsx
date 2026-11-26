@@ -26,6 +26,7 @@ import { TeamRolesPage } from './pages/startup/TeamRolesPage';
 import { BankImportPage } from './pages/startup/BankImportPage';
 import { IntegrationsPage } from './pages/startup/IntegrationsPage';
 import { GrantOfferAcceptancePage } from './pages/startup/GrantOfferAcceptancePage';
+import { AccountingLedger } from './pages/startup/AccountingLedger';
 import { GrantSetupWizard } from './pages/institution/GrantSetupWizard';
 import { InstitutionDashboard } from './pages/institution/InstitutionDashboard';
 import { GrantPrograms, StartupPortfolio } from './pages/institution/ProgramsAndPortfolio';
@@ -54,6 +55,7 @@ export const App: React.FC = () => {
             <Route path="dashboard" element={<StartupDashboard />} />
             <Route path="chart-of-accounts" element={<ChartOfAccountsPage />} />
             <Route path="journal" element={<JournalEntriesPage />} />
+            <Route path="accounting-ledger" element={<AccountingLedger />} />
             <Route path="ledger" element={<GeneralLedgerPage />} />
             <Route path="budgets" element={<BudgetManagement />} />
             <Route path="burn-runway" element={<BurnAndRunwayPage />} />
