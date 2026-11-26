@@ -325,6 +325,9 @@ export const LandingPage: React.FC = () => {
             <Link to="/auth/login" className="text-xs font-medium text-ink-2 transition hover:text-accent">
               Sign in
             </Link>
+            <Link to="/auth/register" className="text-xs font-medium text-ink-2 transition hover:text-accent">
+              Create account
+            </Link>
             <button
               type="button"
               onClick={() => enterWorkspace('STARTUP_FOUNDER')}
@@ -362,9 +365,12 @@ export const LandingPage: React.FC = () => {
                 </a>
               ))}
             </nav>
-            <div className="mt-4 flex items-center gap-3 border-t border-border pt-4">
+            <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-border pt-4">
               <Link to="/auth/login" className="text-sm font-medium text-ink-2">
                 Sign in
+              </Link>
+              <Link to="/auth/register" className="text-sm font-medium text-ink-2">
+                Create account
               </Link>
               <button
                 type="button"
@@ -666,6 +672,7 @@ export const LandingPage: React.FC = () => {
             <a href="#workflow" className="transition hover:text-accent">Workflow</a>
             <a href="#roles" className="transition hover:text-accent">Roles</a>
             <Link to="/auth/login" className="transition hover:text-accent">Sign in</Link>
+            <Link to="/auth/register" className="transition hover:text-accent">Create account</Link>
           </div>
           <p className="font-mono text-[10px] text-ink-3">© 2026 Grant Ledger</p>
         </div>
