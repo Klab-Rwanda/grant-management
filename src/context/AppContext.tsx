@@ -47,7 +47,13 @@ interface AppContextType {
   // Submissions & Review
   submissions: SubmissionPackage[];
   reviewLineItem: (submissionId: string, transactionId: string, status: 'APPROVED' | 'REJECTED' | 'CORRECTION_REQUESTED', reason?: RejectionReasonCode, comment?: string) => void;
-  submitTranchePackage: (trancheId: string, transactionIds: string[]) => void;
+  submitTranchePackage: (
+    trancheId: string,
+    transactionIds: string[],
+    signedBy: string,
+    signedAt: string,
+    validationRef: string
+  ) => void;
   reconcileDisbursement: (trancheId: string, paymentRef: string, transferDate: string, amount: number, exchangeRate: number, bankProofUrl: string) => void;
 
   // Notifications
@@ -228,7 +234,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
-  const submitTranchePackage = (trancheId: string, transactionIds: string[]) => {
+  const submitTranchePackage = (
+    trancheId: string,
+    transactionIds: string[],
+    signedBy: string,
+    signedAt: string,
+    validationRef: string
+  ) => {
     const targetTransactions = transactions.filter(t => transactionIds.includes(t.id));
     const totalClaimed = targetTransactions.reduce((acc, curr) => acc + (curr.debit || 0), 0);
 
@@ -241,6 +253,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       totalClaimed,
       itemsCount: targetTransactions.length,
       status: 'PENDING_REVIEW',
+      signedBy,
+      signedAt,
+      signatureTitle: 'Authorized founder sign-off',
+      validationRef,
       reviewedItemsCount: 0,
       approvedItemsCount: 0,
       rejectedItemsCount: 0,
@@ -260,7 +276,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     updateTrancheStatus(trancheId, 'SUBMITTED', 'Submitted for institutional review.');
     
     // Mark items as SUBMITTED in ledger
-    setTransactions(prev => prev.map(tx => transactionIds.includes(tx.id) ? { ...tx, submissionStatus: 'SUBMITTED' } : tx));
+    setTransactions(prev => prev.map(tx => transactionIds.includes(tx.id)
+      ? { ...tx, submissionStatus: 'SUBMITTED', isLocked: true }
+      : tx
+    ));
   };
 
   const reconcileDisbursement = (

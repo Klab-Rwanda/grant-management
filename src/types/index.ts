@@ -84,6 +84,7 @@ export interface Transaction {
   receiptId?: string;
   merchantName?: string;
   submissionStatus?: 'UNSUBMITTED' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'CORRECTION_NEEDED';
+  isLocked?: boolean;
   reviewReason?: RejectionReasonCode;
   reviewComment?: string;
 }
@@ -123,6 +124,10 @@ export interface SubmissionPackage {
   totalClaimed: number;
   itemsCount: number;
   status: TrancheStatus;
+  signedBy?: string;
+  signedAt?: string;
+  signatureTitle?: string;
+  validationRef?: string;
   reviewedItemsCount: number;
   approvedItemsCount: number;
   rejectedItemsCount: number;

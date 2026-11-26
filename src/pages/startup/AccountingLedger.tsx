@@ -4,19 +4,14 @@ import {
   Search, 
   Filter, 
   Download, 
-  Paperclip, 
   FileCheck, 
   ArrowDownRight, 
   ArrowUpRight,
-  ShieldCheck,
-  Calendar,
-  Layers,
-  Sparkles
+  ShieldCheck
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { StatusBadge, RejectionReasonBadge } from '../../components/common/StatusBadge';
 import { Modal } from '../../components/common/Modal';
-import { Transaction } from '../../types';
 
 export const AccountingLedger: React.FC = () => {
   const { 
@@ -38,14 +33,12 @@ export const AccountingLedger: React.FC = () => {
   const [account, setAccount] = useState('Operating Bank Account (SVB)');
   const [amount, setAmount] = useState<number>(1500);
   const [type, setType] = useState<'DEBIT' | 'CREDIT'>('DEBIT');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [merchant, setMerchant] = useState('');
   const [selectedReceipt, setSelectedReceipt] = useState('');
 
-  // Total balancing check
   const totalDebits = transactions.reduce((acc, t) => acc + (t.debit || 0), 0);
   const totalCredits = transactions.reduce((acc, t) => acc + (t.credit || 0), 0);
-  const isBalanced = totalCredits >= totalDebits; // In cash flow accounting
 
   const filteredTransactions = transactions.filter(t => {
     const matchesSearch = t.description.toLowerCase().includes(searchQuery.toLowerCase()) ||

@@ -171,8 +171,8 @@ export const INITIAL_MILESTONES: Milestone[] = [
     title: 'FDA IND Dossier Preparation',
     description: 'Comprehensive regulatory compilation and safety toxicology compilation for IND submission.',
     dueDate: '2027-01-10',
-    completionPercentage: 20,
-    status: 'NOT_STARTED',
+    completionPercentage: 80,
+    status: 'IN_PROGRESS',
     deliverablesCount: 1,
     commentsCount: 0
   }
@@ -398,6 +398,45 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     grantId: 'grant-2026-alpha',
     trancheId: 'tranche-02',
     merchantName: 'Global Innovation & Tech Fund'
+  },
+  {
+    id: 'tx-508',
+    date: '2026-11-20',
+    description: 'Regulatory Consulting Retainer · FDA Filing',
+    category: 'Patent & Legal',
+    account: 'Operating Bank Account (SVB)',
+    debit: 14800,
+    credit: 0,
+    grantId: 'grant-2026-alpha',
+    trancheId: 'tranche-04',
+    receiptId: 'doc-104',
+    merchantName: 'Regulatory Affairs Partners'
+  },
+  {
+    id: 'tx-509',
+    date: '2026-11-21',
+    description: 'Clinical Data Management Platform',
+    category: 'Operations & Cloud',
+    account: 'Operating Bank Account (SVB)',
+    debit: 9650,
+    credit: 0,
+    grantId: 'grant-2026-alpha',
+    trancheId: 'tranche-04',
+    receiptId: 'doc-105',
+    merchantName: 'Medidata Solutions'
+  },
+  {
+    id: 'tx-510',
+    date: '2026-11-22',
+    description: 'Biostatistics Contractor · Phase II Design',
+    category: 'Personnel & Engineering',
+    account: 'Operating Bank Account (SVB)',
+    debit: 12400,
+    credit: 0,
+    grantId: 'grant-2026-alpha',
+    trancheId: 'tranche-04',
+    receiptId: 'doc-101',
+    merchantName: 'BioStats Consulting LLC'
   }
 ];
 
@@ -411,6 +450,10 @@ export const INITIAL_SUBMISSIONS: SubmissionPackage[] = [
     totalClaimed: 73150,
     itemsCount: 5,
     status: 'PENDING_REVIEW',
+    signedBy: 'Elena Rostova',
+    signedAt: '2026-11-18T09:42:00.000Z',
+    signatureTitle: 'Authorized founder sign-off',
+    validationRef: 'VAL-2026-1118-03',
     reviewedItemsCount: 3,
     approvedItemsCount: 2,
     rejectedItemsCount: 1,
