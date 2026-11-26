@@ -60,10 +60,10 @@ export const Sidebar: React.FC = () => {
       { label: 'Bank import', path: '/startup/bank-import', icon: Banknote },
     ]},
     { section: 'OPERATIONS', items: [
-      { label: 'Activity log', path: '/startup/milestones', icon: Activity }
+      { label: 'Activity log', path: '/startup/activity-log', icon: Activity }
     ]},
     { section: 'GRANTS', items: [
-      { label: 'My grants', path: '/startup/grants', icon: Award },
+      { label: 'My grants', path: '/startup/grants', badge: '1 new', icon: Award },
       { label: 'Grant offer', path: '/startup/grant-offer', icon: FileText },
       { label: 'Tranche workspace', path: '/startup/tranches', badge: '3', icon: Layers },
       { label: 'Evidence vault', path: '/startup/evidence', icon: ShieldCheck }
@@ -77,18 +77,19 @@ export const Sidebar: React.FC = () => {
   ];
 
   const institutionNav: NavGroup[] = [
-    { section: 'PORTFOLIO', items: [
-      { label: 'Programs list', path: '/institution/programs', icon: FolderKanban },
-      { label: 'Funded portfolio', path: '/institution/startups', icon: Briefcase },
+    { section: 'PROGRAMS', items: [
+      { label: 'Programs', path: '/institution/programs', icon: FolderKanban },
+      { label: 'Portfolio', path: '/institution/startups', icon: Briefcase },
     ]},
     { section: 'REVIEWS', items: [
-      { label: 'Review queue', path: '/institution/reviews', badge: '7', icon: CheckSquare },
-      { label: 'Committee sign-off', path: '/institution/approvals', icon: Award },
-      { label: 'Disbursement & wire', path: '/institution/reconciliation', icon: Banknote },
+      { label: 'Review queue', path: '/institution/reviews', badge: '6', icon: CheckSquare },
+      { label: 'Reconciliation', path: '/institution/reconciliation', badge: '1', icon: Banknote },
     ]},
-    { section: 'RECORDS', items: [
+    { section: 'SETTINGS', items: [
+      { label: 'SLA rules', path: '/institution/sla-rules', icon: Sliders },
+      { label: 'Team & roles', path: '/startup/team', icon: Users },
       { label: 'Audit log', path: '/institution/reports', icon: Activity },
-      { label: 'Notifications', path: '/startup/notifications', badge: '3', icon: Bell },
+      { label: 'Notifications', path: '/startup/notifications', badge: '5', icon: Bell },
     ]}
   ];
 

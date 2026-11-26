@@ -13,8 +13,9 @@ import { ChartOfAccountsPage } from './pages/startup/ChartOfAccountsPage';
 import { JournalEntriesPage } from './pages/startup/JournalEntriesPage';
 import { GeneralLedgerPage } from './pages/startup/GeneralLedgerPage';
 import { BurnAndRunwayPage } from './pages/startup/BurnAndRunwayPage';
+import { ActivityLogPage } from './pages/startup/ActivityLogPage';
 import { BudgetManagement } from './pages/startup/BudgetManagement';
-import { GrantsOverview } from './pages/startup/GrantsOverview';
+import { GrantsOverview, GrantDetailPage } from './pages/startup/GrantsOverview';
 import { TrancheManagement } from './pages/startup/TrancheManagement';
 import { EvidenceVault } from './pages/startup/EvidenceVault';
 import { Milestones } from './pages/startup/Milestones';
@@ -26,11 +27,12 @@ import { TeamRolesPage } from './pages/startup/TeamRolesPage';
 import { BankImportPage } from './pages/startup/BankImportPage';
 import { IntegrationsPage } from './pages/startup/IntegrationsPage';
 import { GrantOfferAcceptancePage } from './pages/startup/GrantOfferAcceptancePage';
-import { GrantSetupWizard } from './pages/institution/GrantSetupWizard';
 import { InstitutionDashboard } from './pages/institution/InstitutionDashboard';
-import { GrantPrograms, StartupPortfolio } from './pages/institution/ProgramsAndPortfolio';
+import { GrantPrograms, ProgramDetail, StartupPortfolio } from './pages/institution/ProgramsAndPortfolio';
 import { FinancialReviewCenter, ApprovalManagement } from './pages/institution/ReviewAndApproval';
 import { DisbursementReconciliation } from './pages/institution/DisbursementReconciliation';
+import { SLARulesPage } from './pages/institution/SLARulesPage';
+import { CreateGrantProgram, GrantSetupWizard } from './pages/institution/GrantSetupWizard';
 
 // Admin Workspace pages
 import { AdminDashboard } from './pages/admin/AdminDashboard';
@@ -57,7 +59,9 @@ export const App: React.FC = () => {
             <Route path="ledger" element={<GeneralLedgerPage />} />
             <Route path="budgets" element={<BudgetManagement />} />
             <Route path="burn-runway" element={<BurnAndRunwayPage />} />
+            <Route path="activity-log" element={<ActivityLogPage />} />
             <Route path="grants" element={<GrantsOverview />} />
+            <Route path="grants/:id" element={<GrantDetailPage />} />
             <Route path="grant-offer" element={<GrantOfferAcceptancePage />} />
             <Route path="tranches" element={<TrancheManagement />} />
             <Route path="evidence" element={<EvidenceVault />} />
@@ -71,14 +75,19 @@ export const App: React.FC = () => {
           </Route>
 
           {/* Institution Workspace Routes */}
-          <Route path="/institution" element={<AppLayout title="Institution Workspace" breadcrumbs={['Review queue', 'Tembo Agritech · Tranche 2 · SUB-T2-01']} />}>
+          <Route path="/institution" element={<AppLayout title="Institution Workspace" breadcrumbs={['Programs']} />}>
             <Route path="dashboard" element={<InstitutionDashboard />} />
             <Route path="programs" element={<GrantPrograms />} />
-            <Route path="programs/new" element={<GrantSetupWizard />} />
+            <Route path="programs/new" element={<CreateGrantProgram />} />
+            <Route path="programs/setup-grant" element={<GrantSetupWizard />} />
+            <Route path="programs/:id" element={<ProgramDetail />} />
             <Route path="startups" element={<StartupPortfolio />} />
             <Route path="reviews" element={<FinancialReviewCenter />} />
+            <Route path="reviews/detail" element={<ApprovalManagement />} />
+            <Route path="reviews/:id" element={<ApprovalManagement />} />
             <Route path="approvals" element={<ApprovalManagement />} />
             <Route path="reconciliation" element={<DisbursementReconciliation />} />
+            <Route path="sla-rules" element={<SLARulesPage />} />
             <Route path="reports" element={<FinancialReports />} />
           </Route>
 

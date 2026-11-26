@@ -1,237 +1,272 @@
 import React, { useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { 
-  Flame, 
-  Calendar, 
-  ArrowUpRight, 
-  ArrowDownRight, 
-  DollarSign, 
-  Clock, 
-  TrendingDown, 
-  AlertTriangle, 
-  Download, 
-  Info,
-  CheckCircle2
-} from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  ResponsiveContainer, 
+  Cell,
+  LabelList
+} from 'recharts';
 
 export const BurnAndRunwayPage: React.FC = () => {
-  const [scenario, setScenario] = useState<'CURRENT' | 'CONSERVATIVE' | 'AGGRESSIVE'>('CURRENT');
-  const [includeGrantInflow, setIncludeGrantInflow] = useState(true);
+  const [burnAverage, setBurnAverage] = useState<'3-month average' | '6-month average' | '12-month average'>('3-month average');
+  const [alertThreshold, setAlertThreshold] = useState('6 months');
 
-  // Cash and burn metrics matching A-08
-  const currentCash = 89600.55;
-  const netBurnRate = 11026.38;
-  const grossBurnRate = 13976.38;
-  const revenueRunrate = 2950.00;
-  const runwayMonths = (currentCash / netBurnRate).toFixed(1); // ~8.1 - 9.1 months
-
-  // 12-month runway projection data
-  const projectionData = [
-    { month: 'Oct 26', cash: 89600, netBurn: 11026, revenue: 2950, expenses: 13976 },
-    { month: 'Nov 26', cash: 78574, netBurn: 11200, revenue: 3100, expenses: 14300 },
-    { month: 'Dec 26', cash: 67374, netBurn: 11400, revenue: 3400, expenses: 14800 },
-    { month: 'Jan 27', cash: 95974, netBurn: 11800, revenue: 3600, expenses: 15400, note: 'Tranche 2 disbursement ($40k)' },
-    { month: 'Feb 27', cash: 84174, netBurn: 12000, revenue: 3800, expenses: 15800 },
-    { month: 'Mar 27', cash: 72174, netBurn: 12200, revenue: 4100, expenses: 16300 },
-    { month: 'Apr 27', cash: 59974, netBurn: 12500, revenue: 4300, expenses: 16800 },
-    { month: 'May 27', cash: 47474, netBurn: 12800, revenue: 4600, expenses: 17400 },
-    { month: 'Jun 27', cash: 34674, netBurn: 13100, revenue: 4900, expenses: 18000 },
-    { month: 'Jul 27', cash: 61574, netBurn: 13500, revenue: 5200, expenses: 18700, note: 'Tranche 3 disbursement ($40k)' },
-    { month: 'Aug 27', cash: 48074, netBurn: 13800, revenue: 5500, expenses: 19300 },
-    { month: 'Sep 27', cash: 34274, netBurn: 14200, revenue: 5800, expenses: 20000 },
+  // Exact data from screenshot: May to Oct
+  // May (11,020), Jun (10,640), Jul (9,950), Aug (10,420), Sep (9,860), Oct (9,140)
+  // Current 3-month average (Aug, Sep, Oct): Dark navy (#16213A)
+  // Earlier months (May, Jun, Jul): Deep teal (#0E6466)
+  const monthlyBurnData = [
+    { month: 'May', value: 11020, display: '11,020', isRecentAvg: false },
+    { month: 'Jun', value: 10640, display: '10,640', isRecentAvg: false },
+    { month: 'Jul', value: 9950, display: '9,950', isRecentAvg: false },
+    { month: 'Aug', value: 10420, display: '10,420', isRecentAvg: true },
+    { month: 'Sep', value: 9860, display: '9,860', isRecentAvg: true },
+    { month: 'Oct', value: 9140, display: '9,140', isRecentAvg: true },
   ];
 
+  // Custom customized top label for bar chart matching screenshot
+  const renderCustomBarLabel = (props: any) => {
+    const { x, y, width, value } = props;
+    if (value === undefined || value === null) return null;
+    return (
+      <text 
+        x={x + width / 2} 
+        y={y - 8} 
+        fill="#5A6275" 
+        textAnchor="middle" 
+        className="font-mono text-[11px]"
+      >
+        {Number(value).toLocaleString()}
+      </text>
+    );
+  };
+
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
-      {/* Header matching A-08 */}
+    <div className="space-y-6 max-w-6xl mx-auto font-sans pb-10">
+      {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-serif font-normal text-[#16213A] tracking-tight">
-            Burn rate & runway
+            Burn & runway
           </h1>
-          <p className="text-xs text-[#5A6275] mt-1">
-            Tembo Agritech Ltd · Cash depletion trajectory and runway forecasting based on posted general ledger transactions
+          <p className="text-xs text-[#5A6275] mt-1 font-sans">
+            Cash basis · Last 6 closed months · USD
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex bg-[#F1EEE7] border border-[#DDD8CC] rounded-md p-0.5 text-xs">
-            {(['CURRENT', 'CONSERVATIVE', 'AGGRESSIVE'] as const).map(s => (
-              <button
-                key={s}
-                onClick={() => setScenario(s)}
-                className={`px-3 py-1 rounded transition font-medium capitalize ${
-                  scenario === s ? 'bg-[#16213A] text-white' : 'text-[#5A6275] hover:text-[#16213A]'
-                }`}
-              >
-                {s.toLowerCase()}
-              </button>
-            ))}
+        {/* Burn average dropdown */}
+        <div className="flex flex-col items-start sm:items-end">
+          <span className="text-[11px] text-[#5A6275] mb-1 font-medium">Burn average</span>
+          <div className="relative">
+            <select
+              value={burnAverage}
+              onChange={(e) => setBurnAverage(e.target.value as any)}
+              className="appearance-none bg-white border border-[#DDD8CC] rounded-lg px-3.5 py-1.5 pr-8 text-xs font-medium text-[#16213A] shadow-ledger focus:outline-none focus:border-[#0E6466] cursor-pointer"
+            >
+              <option value="3-month average">3-month average</option>
+              <option value="6-month average">6-month average</option>
+              <option value="12-month average">12-month average</option>
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-[#5A6275] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
-
-          <button 
-            onClick={() => window.print()}
-            className="px-3.5 py-1.5 text-xs font-medium rounded-md bg-white border border-[#DDD8CC] text-[#16213A] hover:bg-[#F1EEE7] shadow-ledger transition flex items-center gap-1.5"
-          >
-            <Download className="w-3.5 h-3.5 text-[#5A6275]" />
-            <span>Export forecast</span>
-          </button>
         </div>
       </div>
 
-      {/* Top Metric Cards */}
+      {/* 4 KPI Summary Cards matching screenshot */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white border border-[#DDD8CC] rounded-lg p-5 shadow-ledger">
-          <div className="flex items-center justify-between text-[#5A6275] text-xs mb-2">
-            <span>Cash on hand</span>
-            <DollarSign className="w-4 h-4 text-[#0E6466]" />
+        {/* Card 1: Cash on hand */}
+        <div className="bg-white border border-[#DDD8CC] rounded-xl p-5 shadow-ledger">
+          <div className="text-xs text-[#5A6275] font-normal mb-2">
+            Cash on hand (31 Oct)
           </div>
           <div className="text-2xl font-mono font-medium text-[#16213A]">
-            ${currentCash.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            89,600.55
           </div>
-          <div className="text-[11px] text-[#5A6275] mt-1 flex items-center gap-1">
-            <span>Accounts 1010 + 1020</span>
+          <div className="text-xs text-[#5A6275] mt-1">
+            Bank + mobile money
           </div>
         </div>
 
-        <div className="bg-white border border-[#DDD8CC] rounded-lg p-5 shadow-ledger">
-          <div className="flex items-center justify-between text-[#5A6275] text-xs mb-2">
-            <span>Net monthly burn</span>
-            <Flame className="w-4 h-4 text-[#D97706]" />
+        {/* Card 2: Gross burn */}
+        <div className="bg-white border border-[#DDD8CC] rounded-xl p-5 shadow-ledger">
+          <div className="text-xs text-[#5A6275] font-normal mb-2">
+            Gross burn (Oct)
           </div>
           <div className="text-2xl font-mono font-medium text-[#16213A]">
-            ${netBurnRate.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            12,090.00
           </div>
-          <div className="text-[11px] text-[#5A6275] mt-1 flex items-center gap-1">
-            <span className="text-[#C0392B] font-mono font-medium">+4.2%</span> vs 3-mo rolling avg
+          <div className="text-xs text-[#5A6275] mt-1">
+            Cash out
           </div>
         </div>
 
-        <div className="bg-white border border-[#DDD8CC] rounded-lg p-5 shadow-ledger">
-          <div className="flex items-center justify-between text-[#5A6275] text-xs mb-2">
-            <span>Gross monthly spend</span>
-            <TrendingDown className="w-4 h-4 text-[#5A6275]" />
+        {/* Card 3: Net burn */}
+        <div className="bg-white border border-[#DDD8CC] rounded-xl p-5 shadow-ledger">
+          <div className="text-xs text-[#5A6275] font-normal mb-2">
+            Net burn (3-mo avg)
           </div>
           <div className="text-2xl font-mono font-medium text-[#16213A]">
-            ${grossBurnRate.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            9,806.67
           </div>
-          <div className="text-[11px] text-[#5A6275] mt-1 flex items-center gap-1">
-            <span>Offset by ${revenueRunrate.toLocaleString()} revenue</span>
+          <div className="text-xs text-[#5A6275] mt-1">
+            Cash out minus cash in
           </div>
         </div>
 
-        <div className="bg-white border border-[#DDD8CC] rounded-lg p-5 shadow-ledger bg-gradient-to-br from-white to-[#F7F5F0]">
-          <div className="flex items-center justify-between text-[#5A6275] text-xs mb-2">
-            <span>Calculated runway</span>
-            <Clock className="w-4 h-4 text-[#0E6466]" />
+        {/* Card 4: Runway */}
+        <div className="bg-white border border-[#DDD8CC] rounded-xl p-5 shadow-ledger">
+          <div className="text-xs text-[#5A6275] font-normal mb-2">
+            Runway
           </div>
-          <div className="text-2xl font-mono font-medium text-[#0E6466]">
-            {runwayMonths} months
+          <div className="text-2xl font-mono font-medium text-[#16213A]">
+            9.1 months
           </div>
-          <div className="text-[11px] text-[#5A6275] mt-1 flex items-center gap-1">
-            <CheckCircle2 className="w-3.5 h-3.5 text-[#0E6466]" />
-            <span>Sufficient through July 2027</span>
+          <div className="text-xs text-[#5A6275] mt-1 font-mono">
+            89,600.55 ÷ 9,806.67
           </div>
         </div>
       </div>
 
-      {/* Runway Projection Chart */}
-      <div className="bg-white border border-[#DDD8CC] rounded-lg p-6 shadow-ledger">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-[#DDD8CC]">
-          <div>
-            <h2 className="text-sm font-semibold text-[#16213A] uppercase tracking-wider">
-              Cash balance trajectory (12 months)
+      {/* Main Grid: Left chart + Right sidebar cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        {/* Left Column: Net burn by month chart (span-2) */}
+        <div className="lg:col-span-2 bg-white border border-[#DDD8CC] rounded-xl p-6 shadow-ledger">
+          <div className="flex items-center justify-between mb-6 pb-2">
+            <h2 className="text-base font-serif font-normal text-[#16213A]">
+              Net burn by month
             </h2>
-            <p className="text-xs text-[#5A6275] mt-0.5">
-              Assumes baseline monthly burn of ${netBurnRate.toLocaleString()} with scheduled grant tranches.
+            <span className="text-xs text-[#5A6275] font-sans">
+              Bars labelled with exact values
+            </span>
+          </div>
+
+          <div className="h-72 w-full pt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart 
+                data={monthlyBurnData} 
+                margin={{ top: 25, right: 10, left: 10, bottom: 20 }}
+                barCategoryGap="22%"
+              >
+                <XAxis 
+                  dataKey="month" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: '#5A6275', fontSize: 12, fontFamily: 'Inter, sans-serif' }} 
+                  dy={10}
+                />
+                <YAxis hide={true} domain={[0, 13000]} />
+                <Bar 
+                  dataKey="value" 
+                  radius={[3, 3, 0, 0]}
+                  label={renderCustomBarLabel}
+                >
+                  {monthlyBurnData.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={entry.isRecentAvg ? '#16213A' : '#0E6466'} 
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Legend matching screenshot */}
+          <div className="flex items-center gap-6 mt-6 pt-4 border-t border-[#DDD8CC]/50 text-xs text-[#5A6275]">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-sm bg-[#16213A]"></span>
+              <span>In current 3-month average</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-sm bg-[#0E6466]"></span>
+              <span>Earlier months</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: 3 Cards (Runway with grants, Alert threshold, Empty state) */}
+        <div className="space-y-6">
+          {/* Card 1: Runway with expected grant funds */}
+          <div className="bg-white border border-[#DDD8CC] rounded-xl p-5 shadow-ledger">
+            <h3 className="text-sm font-semibold text-[#16213A] mb-3 leading-snug">
+              Runway with expected grant funds
+            </h3>
+
+            <div className="border border-[#DDD8CC] rounded-lg overflow-hidden mb-3">
+              <div className="grid grid-cols-2 bg-[#F1EEE7] px-3.5 py-2 text-xs font-medium text-[#5A6275]">
+                <div>Scenario</div>
+                <div className="text-right">Runway</div>
+              </div>
+
+              <div className="divide-y divide-[#DDD8CC]/60 bg-white text-xs">
+                <div className="grid grid-cols-2 px-3.5 py-2.5 items-center">
+                  <div className="text-[#16213A]">Cash on hand only</div>
+                  <div className="text-right font-mono text-[#16213A]">9.1 mo</div>
+                </div>
+
+                <div className="grid grid-cols-2 px-3.5 py-2.5 items-center">
+                  <div className="text-[#16213A]">
+                    + Tranche 2 <br />
+                    <span className="text-[#5A6275] font-mono text-[11px]">($50,000)</span>
+                  </div>
+                  <div className="text-right font-mono text-[#16213A]">14.2 mo</div>
+                </div>
+
+                <div className="grid grid-cols-2 px-3.5 py-2.5 items-center">
+                  <div className="text-[#16213A]">
+                    + Tranches 2 and 3 <br />
+                    <span className="text-[#5A6275] font-mono text-[11px]">($80,000)</span>
+                  </div>
+                  <div className="text-right font-mono text-[#16213A]">17.3 mo</div>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-[#5A6275] leading-relaxed">
+              Expected grant funds are shown separately and never added to cash until the tranche is reconciled.
             </p>
           </div>
 
-          <label className="flex items-center gap-2 text-xs text-[#16213A] cursor-pointer">
-            <input 
-              type="checkbox" 
-              checked={includeGrantInflow} 
-              onChange={e => setIncludeGrantInflow(e.target.checked)}
-              className="rounded border-[#DDD8CC] text-[#0E6466] focus:ring-0" 
-            />
-            <span>Include scheduled grant disbursements</span>
-          </label>
-        </div>
+          {/* Card 2: Alert threshold */}
+          <div className="bg-white border border-[#DDD8CC] rounded-xl p-5 shadow-ledger">
+            <h3 className="text-sm font-semibold text-[#16213A] mb-1.5">
+              Alert threshold
+            </h3>
+            <label className="block text-xs text-[#5A6275] mb-2">
+              Warn me when runway drops below
+            </label>
 
-        <div className="h-72 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={projectionData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="cashGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#0E6466" stopOpacity={0.2}/>
-                  <stop offset="95%" stopColor="#0E6466" stopOpacity={0.0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EBE7DE" />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#5A6275' }} stroke="#DDD8CC" />
-              <YAxis 
-                tick={{ fontSize: 11, fill: '#5A6275', fontFamily: 'IBM Plex Mono' }} 
-                stroke="#DDD8CC"
-                tickFormatter={(v) => `$${v / 1000}k`}
-              />
-              <Tooltip 
-                formatter={(val: any) => [`$${Number(val || 0).toLocaleString()}`, 'Cash Balance']}
-                contentStyle={{ backgroundColor: '#16213A', borderColor: '#16213A', borderRadius: '6px', color: '#FFF', fontSize: '12px' }}
-              />
-              <Area 
-                type="monotone" 
-                dataKey="cash" 
-                stroke="#0E6466" 
-                strokeWidth={2} 
-                fillOpacity={1} 
-                fill="url(#cashGradient)" 
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+            <div className="relative mb-3">
+              <select
+                value={alertThreshold}
+                onChange={(e) => setAlertThreshold(e.target.value)}
+                className="w-full appearance-none bg-white border border-[#DDD8CC] rounded-lg px-3.5 py-2 pr-8 text-xs font-medium text-[#16213A] shadow-ledger focus:outline-none focus:border-[#0E6466] cursor-pointer"
+              >
+                <option value="3 months">3 months</option>
+                <option value="6 months">6 months</option>
+                <option value="9 months">9 months</option>
+                <option value="12 months">12 months</option>
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-[#5A6275] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
 
-      {/* Monthly Cash Breakdown Table */}
-      <div className="bg-white border border-[#DDD8CC] rounded-lg shadow-ledger overflow-hidden">
-        <div className="px-5 py-3.5 bg-[#F1EEE7] border-b border-[#DDD8CC]">
-          <h2 className="text-xs font-semibold text-[#16213A] uppercase tracking-wider">
-            Historical & Projected Monthly Outflow
-          </h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-[#DDD8CC] bg-[#FAF8F5] text-[#5A6275]">
-                <th className="py-2.5 px-4 text-left font-medium">Month</th>
-                <th className="py-2.5 px-4 text-right font-medium">Opening Cash</th>
-                <th className="py-2.5 px-4 text-right font-medium">Operating Expenses</th>
-                <th className="py-2.5 px-4 text-right font-medium">Earned Revenue</th>
-                <th className="py-2.5 px-4 text-right font-medium">Net Monthly Burn</th>
-                <th className="py-2.5 px-4 text-right font-medium">Ending Cash</th>
-                <th className="py-2.5 px-4 text-left font-medium">Notes & Tranche Inflows</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#DDD8CC]/60 font-mono">
-              {projectionData.slice(0, 6).map((r, i) => (
-                <tr key={r.month} className="hover:bg-[#FAF8F5]">
-                  <td className="py-3 px-4 font-sans font-medium text-[#16213A]">{r.month}</td>
-                  <td className="py-3 px-4 text-right text-[#5A6275]">${(r.cash + r.netBurn).toLocaleString()}</td>
-                  <td className="py-3 px-4 text-right text-[#C0392B]">${r.expenses.toLocaleString()}</td>
-                  <td className="py-3 px-4 text-right text-[#0E6466]">+${r.revenue.toLocaleString()}</td>
-                  <td className="py-3 px-4 text-right font-medium text-[#16213A]">(${r.netBurn.toLocaleString()})</td>
-                  <td className="py-3 px-4 text-right font-semibold text-[#16213A]">${r.cash.toLocaleString()}</td>
-                  <td className="py-3 px-4 font-sans text-[#5A6275]">
-                    {r.note ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#E8F3F1] text-[#0E6466] text-[11px] font-medium border border-[#0E6466]/20">
-                        <CheckCircle2 className="w-3 h-3" />
-                        {r.note}
-                      </span>
-                    ) : '—'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            <p className="text-[11px] text-[#5A6275] leading-relaxed">
+              Alerts go to the Founder and Finance Lead by email and in-app.
+            </p>
+          </div>
+
+          {/* Card 3: Empty state note */}
+          <div className="bg-white border border-[#DDD8CC] rounded-xl p-4 shadow-ledger text-center">
+            <div className="text-[11px] font-semibold text-[#5A6275] uppercase tracking-wider mb-1.5">
+              EMPTY STATE
+            </div>
+            <p className="text-xs text-[#5A6275] leading-relaxed max-w-xs mx-auto">
+              Burn needs at least one closed month of cash transactions. Close October to see your first figure.
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -1,571 +1,367 @@
-import React, { useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  AlertCircle,
-  ArrowRight,
-  Banknote,
   CheckCircle2,
-  FileCheck2,
   Info,
-  Loader2,
-  ShieldCheck,
-  UploadCloud,
-  X,
+  AlertTriangle,
+  FileCheck2,
+  Paperclip,
+  Check,
+  ChevronDown,
+  ArrowRight
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { StatusBadge } from '../../components/common/StatusBadge';
-import { Modal } from '../../components/common/Modal';
-import { Tranche } from '../../types';
-
-type ProofStatus = 'idle' | 'uploading' | 'ready' | 'error';
-
-type UnlockNotice = {
-  reconciledNumber: number;
-  nextNumber: number | null;
-  detail: string;
-};
-
-const MAX_PROOF_SIZE = 10 * 1024 * 1024;
-const ACCEPTED_PROOF_TYPES = ['application/pdf', 'image/png', 'image/jpeg'];
-const ACCEPTED_EXTENSIONS = ['.pdf', '.png', '.jpg', '.jpeg'];
-
-const formatFileSize = (bytes: number) =>
-  bytes >= 1024 * 1024
-    ? `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-    : `${Math.max(1, Math.round(bytes / 1024))} KB`;
-
-const validateProofFile = (file: File) => {
-  const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
-
-  if (!ACCEPTED_PROOF_TYPES.includes(file.type) || !ACCEPTED_EXTENSIONS.includes(extension)) {
-    return 'Upload a bank confirmation as a PDF, PNG or JPG file.';
-  }
-  if (file.size === 0) {
-    return 'This file is empty. Choose a valid bank confirmation.';
-  }
-  if (file.size > MAX_PROOF_SIZE) {
-    return 'Bank proof must be 10 MB or smaller.';
-  }
-
-  return null;
-};
-
-const uploadProofFile = (file: File, onProgress: (progress: number) => void) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = async () => {
-      for (const progress of [20, 45, 70, 90, 100]) {
-        await new Promise<void>((done) => setTimeout(done, 110));
-        onProgress(progress);
-      }
-      resolve(String(reader.result));
-    };
-    reader.onerror = () => reject(new Error('Unable to read the selected file.'));
-    reader.readAsDataURL(file);
-  });
-
-const confirmReconciliation = () => new Promise<void>((resolve) => setTimeout(resolve, 900));
 
 export const DisbursementReconciliation: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { tranches, reconcileDisbursement, updateTrancheStatus } = useApp();
 
-  const [selectedTrancheModal, setSelectedTrancheModal] = useState<Tranche | null>(null);
-  const [paymentRef, setPaymentRef] = useState('');
-  const [transferDate, setTransferDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [amount, setAmount] = useState<number>(0);
-  const [proofFile, setProofFile] = useState<File | null>(null);
-  const [proofPreviewUrl, setProofPreviewUrl] = useState<string | null>(null);
-  const [proofStatus, setProofStatus] = useState<ProofStatus>('idle');
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [proofError, setProofError] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [confirmationState, setConfirmationState] = useState<'idle' | 'confirming'>('idle');
-  const [unlockNotice, setUnlockNotice] = useState<UnlockNotice | null>(null);
+  const [wireRef, setWireRef] = useState('FT26346QW7R1');
+  const [method, setMethod] = useState('International wire (SWIFT)');
+  const [dateExecuted, setDateExecuted] = useState('2026-12-15');
+  const [currencySent, setCurrencySent] = useState('USD');
+  const [fxRate, setFxRate] = useState('1.000000');
+  const [netAmount, setNetAmount] = useState('45,545.00');
+  const [explanation, setExplanation] = useState('Intermediary bank fee deducted');
+  const [attachedFile, setAttachedFile] = useState<{ name: string; size: string } | null>({
+    name: 'swift-mt103-FT26346QW7R1.pdf',
+    size: '84 KB'
+  });
+  const [isReconciled, setIsReconciled] = useState(false);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const uploadRunRef = useRef(0);
+  const authorisedAmount = 45570.0;
+  const currentNetNum = parseFloat(netAmount.replace(/,/g, '')) || 0;
+  const variance = authorisedAmount - currentNetNum;
 
-  const eligibleTranches = tranches.filter(
-    (t) =>
-      t.status === 'APPROVED_FOR_DISBURSEMENT' ||
-      t.status === 'PENDING_REVIEW' ||
-      t.status === 'DISBURSED_AND_RECONCILED'
-  );
-
-  const resetProofState = () => {
-    uploadRunRef.current += 1;
-    setProofFile(null);
-    setProofPreviewUrl(null);
-    setProofStatus('idle');
-    setUploadProgress(0);
-    setProofError(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  const closeModal = () => {
-    if (confirmationState === 'confirming') return;
-    setSelectedTrancheModal(null);
-    setFormError(null);
-    resetProofState();
-  };
-
-  const handleOpenModal = (tranche: Tranche) => {
-    setSelectedTrancheModal(tranche);
-    setAmount(tranche.amount);
-    setPaymentRef(`FEDWIRE-${Math.floor(10000000 + Math.random() * 90000000)}`);
-    setFormError(null);
-    setUnlockNotice(null);
-    resetProofState();
-  };
-
-  const processProofFile = async (file: File) => {
-    const validationError = validateProofFile(file);
-    resetProofState();
-
-    if (validationError) {
-      setProofError(validationError);
-      setProofStatus('error');
-      return;
-    }
-
-    const run = ++uploadRunRef.current;
-    setProofFile(file);
-    setProofStatus('uploading');
-    setUploadProgress(0);
-    setProofError(null);
-
-    try {
-      const previewUrl = await uploadProofFile(file, (progress) => {
-        if (uploadRunRef.current === run) setUploadProgress(progress);
-      });
-
-      if (uploadRunRef.current !== run) return;
-      setProofPreviewUrl(previewUrl);
-      setProofStatus('ready');
-    } catch {
-      if (uploadRunRef.current !== run) return;
-      setProofFile(null);
-      setProofStatus('error');
-      setProofError('The proof could not be uploaded. Try again.');
-    }
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) void processProofFile(file);
-  };
-
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setIsDragging(false);
-    const file = event.dataTransfer.files?.[0];
-    if (file) void processProofFile(file);
-  };
-
-  const handleReconcileSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    const tranche = selectedTrancheModal;
-
-    if (!tranche) return;
-    if (!paymentRef.trim()) {
-      setFormError('Enter the bank wire reference before confirming.');
-      return;
-    }
-    if (!Number.isFinite(amount) || amount <= 0) {
-      setFormError('Enter a disbursed amount greater than zero.');
-      return;
-    }
-    if (proofStatus !== 'ready' || !proofPreviewUrl) {
-      setProofError('Upload a valid bank confirmation before confirming.');
-      setProofStatus('error');
-      return;
-    }
-
-    setFormError(null);
-    setConfirmationState('confirming');
-
-    try {
-      await confirmReconciliation();
-
-      reconcileDisbursement(tranche.id, paymentRef.trim(), transferDate, amount, 1, proofPreviewUrl);
-
-      const nextTranche = tranches.find(
-        (item) => item.grantId === tranche.grantId && item.trancheNumber === tranche.trancheNumber + 1
+  const handleConfirm = () => {
+    // Execute reconciliation
+    const targetTranche = tranches.find(t => t.trancheNumber === 2) || tranches[0];
+    if (targetTranche) {
+      reconcileDisbursement(
+        targetTranche.id,
+        wireRef,
+        dateExecuted,
+        currentNetNum,
+        parseFloat(fxRate) || 1,
+        'swift-mt103-FT26346QW7R1.pdf'
       );
-
-      if (nextTranche) {
-        if (nextTranche.status === 'DRAFT') {
-          updateTrancheStatus(
-            nextTranche.id,
-            'ACTIVE',
-            `Unlocked after tranche ${tranche.trancheNumber} was reconciled.`
-          );
-        }
-        setUnlockNotice({
-          reconciledNumber: tranche.trancheNumber,
-          nextNumber: nextTranche.trancheNumber,
-          detail:
-            nextTranche.status === 'DRAFT'
-              ? 'Status changed from DRAFT to ACTIVE. The grantee can now prepare a claim.'
-              : 'The tranche is active and ready for the next claim submission.',
-        });
-      } else {
-        setUnlockNotice({
-          reconciledNumber: tranche.trancheNumber,
-          nextNumber: null,
-          detail: 'This is the final tranche in the grant. No downstream tranche needs unlocking.',
-        });
+      const nextT = tranches.find(t => t.trancheNumber === targetTranche.trancheNumber + 1);
+      if (nextT && nextT.status === 'DRAFT') {
+        updateTrancheStatus(nextT.id, 'ACTIVE', 'Unlocked after tranche 2 was reconciled.');
       }
-
-      setSelectedTrancheModal(null);
-      resetProofState();
-    } catch {
-      setFormError('Reconciliation could not be confirmed. Try again.');
-    } finally {
-      setConfirmationState('idle');
     }
+    setIsReconciled(true);
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-6xl">
+      {/* Breadcrumb & Header */}
       <div>
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-          External Bank Wire Disbursement Reconciliation
-        </h2>
-        <p className="text-xs text-slate-500">
-          Match and confirm off-platform commercial bank transfers, upload wire confirmation slips, and unlock downstream
-          tranches.
-        </p>
-      </div>
-
-      <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-300 flex items-start gap-3 text-xs leading-relaxed">
-        <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-        <div>
-          <strong className="block font-semibold mb-0.5">Off-Platform Settlement Protocol</strong>
-          GrantStack does not hold custodial funds or execute direct automated wire transfers. Payments are initiated
-          outside the platform via your commercial banking partner. Record the verified wire reference and attach the
-          confirmation memo here to update the grantee's audit ledger and unlock subsequent tranches.
+        <div className="flex items-center gap-2 text-xs text-[#5A6672] mb-1">
+          <span>Reconciliation</span>
+          <span>/</span>
+          <span className="text-[#16213A] font-medium">Tembo Agritech · Tranche 2</span>
+        </div>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-serif font-bold text-[#16213A]">
+              Record off-platform payment
+            </h1>
+            <p className="text-xs text-[#5A6672] mt-0.5">
+              Authorisation AUTH-2026-0117 · Approved by Linda P. on 12 Dec 2026 · Authorised USD 45,570.00
+            </p>
+          </div>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[#E8F5E9] text-[#2E7D32] border border-[#C8E6C9]">
+            <CheckCircle2 className="w-3.5 h-3.5" /> Approved for disbursement
+          </span>
         </div>
       </div>
 
-      {unlockNotice && (
-        <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-            <div className="text-xs leading-relaxed">
-              <p className="font-semibold">Reconciliation confirmed by settlement service</p>
-              <p className="mt-0.5 text-emerald-700 dark:text-emerald-200">
-                Tranche #{unlockNotice.reconciledNumber} is marked DISBURSED_AND_RECONCILED.{' '}
-                {unlockNotice.nextNumber
-                  ? `Tranche #${unlockNotice.nextNumber} is unlocked for submission.`
-                  : 'All tranches in this grant are now settled.'}{' '}
-                {unlockNotice.detail}
+      {/* Info notice box */}
+      <div className="p-3.5 rounded-lg bg-[#EBF3FB] border border-[#D0E2F7] text-[#1E3A8A] flex items-center gap-2.5 text-xs">
+        <Info className="w-4 h-4 text-[#2563EB] shrink-0" />
+        <div>
+          Pay through your own bank, wire or mobile-money channel first. This screen only records the proof. No money moves through this platform.
+        </div>
+      </div>
+
+      {isReconciled && (
+        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold">Payment reconciled successfully!</p>
+              <p className="text-xs text-emerald-700 mt-0.5">
+                Tranche 2 is now marked Disbursed & Reconciled. Tranche 3 is unlocked for Tembo Agritech.
               </p>
             </div>
           </div>
-          {unlockNotice.nextNumber && (
-            <button
-              type="button"
-              onClick={() => navigate('/startup/tranches')}
-              className="shrink-0 inline-flex items-center gap-2 self-start rounded-lg border border-emerald-300 dark:border-emerald-700 px-3 py-2 text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition"
-            >
-              View tranche <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          )}
+          <button
+            onClick={() => navigate('/institution/reviews')}
+            className="px-3.5 py-1.5 bg-[#0E6466] text-white text-xs font-semibold rounded-lg hover:bg-[#0b4d4f] transition flex items-center gap-1.5"
+          >
+            Back to review queue <ArrowRight className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Tranche Settlement Pipeline</h3>
-          <span className="text-xs text-slate-400">{eligibleTranches.length} Tranche Entries</span>
-        </div>
+      {/* Main Grid: Form on Left, Checks on Right */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        {/* Left Form (2 cols) */}
+        <div className="lg:col-span-2 bg-white rounded-xl border border-[#DDD8CC] p-6 shadow-sm space-y-5">
+          <h2 className="text-base font-serif font-bold text-[#16213A]">Payment details</h2>
 
-        <div className="divide-y divide-slate-100 dark:divide-slate-800">
-          {eligibleTranches.map((tranche) => {
-            const isReconciled = tranche.status === 'DISBURSED_AND_RECONCILED';
-
-            return (
-              <div
-                key={tranche.id}
-                className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition"
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-slate-900 dark:text-white">
-                      Tranche #{tranche.trancheNumber} — BioGenix Labs
-                    </span>
-                    <StatusBadge status={tranche.status} size="sm" />
-                  </div>
-                  <p className="text-xs text-slate-500 max-w-xl">{tranche.releaseConditions}</p>
-                  {isReconciled && tranche.paymentReference && (
-                    <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono pt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span>
-                        Wire Ref: <strong>{tranche.paymentReference}</strong> • Disbursed {tranche.disbursedDate}
-                      </span>
-                      {tranche.bankProofUrl && (
-                        <a
-                          href={tranche.bankProofUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 underline underline-offset-2"
-                        >
-                          <FileCheck2 className="w-3 h-3" /> View bank proof
-                        </a>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <span className="text-xs text-slate-400 block">Tranche Value</span>
-                    <span className="text-lg font-bold font-mono text-slate-900 dark:text-white">
-                      ${tranche.amount.toLocaleString()} USD
-                    </span>
-                  </div>
-
-                  <div>
-                    {isReconciled ? (
-                      <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 text-xs font-semibold">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Reconciled</span>
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => handleOpenModal(tranche)}
-                        className="px-3.5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold text-xs shadow-sm transition flex items-center gap-1.5"
-                      >
-                        <Banknote className="w-4 h-4" />
-                        <span>Record Bank Wire Proof</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {selectedTrancheModal && (
-        <Modal
-          isOpen
-          onClose={closeModal}
-          title={`Reconcile Tranche #${selectedTrancheModal.trancheNumber} Wire`}
-          description="Enter settlement details and attach the bank confirmation document."
-          maxWidth="2xl"
-        >
-          <form onSubmit={handleReconcileSubmit} className="space-y-4 text-xs">
+          {/* Row 1: Wire ref & Method */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-slate-700 dark:text-slate-300 font-medium mb-1">
-                Bank Wire / SWIFT / Fedwire Reference Number
+              <label className="block text-xs font-medium text-[#16213A] mb-1">
+                Bank / wire reference <span className="text-[#C53030]">*</span>
               </label>
               <input
                 type="text"
-                required
-                value={paymentRef}
-                onChange={(event) => setPaymentRef(event.target.value)}
-                placeholder="e.g. WIRE-98214-FED"
-                className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-mono"
+                value={wireRef}
+                onChange={(e) => setWireRef(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-[#DDD8CC] rounded-lg text-xs font-mono text-[#16213A] focus:outline-none focus:border-[#0E6466]"
+                placeholder="e.g. FT26346QW7R1"
               />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-slate-700 dark:text-slate-300 font-medium mb-1">
-                  Settlement / Transfer Date
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={transferDate}
-                  onChange={(event) => setTransferDate(event.target.value)}
-                  className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-slate-700 dark:text-slate-300 font-medium mb-1">
-                  Disbursed Amount ($ USD)
-                </label>
-                <input
-                  type="number"
-                  required
-                  min="0.01"
-                  step="0.01"
-                  value={amount}
-                  onChange={(event) => setAmount(Number(event.target.value))}
-                  className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-mono"
-                />
-              </div>
+              <span className="text-[10px] text-[#5A6672] mt-1 block">
+                8-35 characters, as shown on the bank confirmation
+              </span>
             </div>
 
             <div>
-              <div className="flex items-center justify-between gap-3 mb-1">
-                <label className="block text-slate-700 dark:text-slate-300 font-medium">
-                  Bank Confirmation Document
-                </label>
-                <span className="text-[10px] text-slate-400">PDF, PNG or JPG · max 10 MB</span>
+              <label className="block text-xs font-medium text-[#16213A] mb-1">
+                Method
+              </label>
+              <div className="relative">
+                <select
+                  value={method}
+                  onChange={(e) => setMethod(e.target.value)}
+                  className="w-full appearance-none px-3 py-2 bg-white border border-[#DDD8CC] rounded-lg text-xs text-[#16213A] focus:outline-none focus:border-[#0E6466] pr-8"
+                >
+                  <option value="International wire (SWIFT)">International wire (SWIFT)</option>
+                  <option value="Domestic Fedwire / ACH">Domestic Fedwire / ACH</option>
+                  <option value="RTGS">RTGS Local Clearing</option>
+                  <option value="Mobile Money Business (B2C)">Mobile Money Business (B2C)</option>
+                </select>
+                <ChevronDown className="w-4 h-4 text-[#5A6672] absolute right-2.5 top-2.5 pointer-events-none" />
               </div>
+            </div>
+          </div>
 
-              <div
-                onDragOver={(event) => {
-                  event.preventDefault();
-                  setIsDragging(true);
-                }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={handleDrop}
-                className={`rounded-xl border-2 border-dashed transition ${
-                  isDragging
-                    ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30'
-                    : proofStatus === 'error'
-                      ? 'border-rose-300 bg-rose-50/60 dark:bg-rose-950/20'
-                      : 'border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40'
-                }`}
-              >
+          {/* Row 2: Date executed & Currency sent */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-[#16213A] mb-1">
+                Date executed <span className="text-[#C53030]">*</span>
+              </label>
+              <input
+                type="date"
+                value={dateExecuted}
+                onChange={(e) => setDateExecuted(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-[#DDD8CC] rounded-lg text-xs text-[#16213A] focus:outline-none focus:border-[#0E6466]"
+              />
+              <span className="text-[10px] text-[#5A6672] mt-1 block">
+                Can't be before the approval date
+              </span>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-[#16213A] mb-1">
+                Currency sent
+              </label>
+              <div className="relative">
+                <select
+                  value={currencySent}
+                  onChange={(e) => setCurrencySent(e.target.value)}
+                  className="w-full appearance-none px-3 py-2 bg-white border border-[#DDD8CC] rounded-lg text-xs text-[#16213A] focus:outline-none focus:border-[#0E6466] pr-8"
+                >
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                  <option value="GBP">GBP</option>
+                  <option value="KES">KES</option>
+                </select>
+                <ChevronDown className="w-4 h-4 text-[#5A6672] absolute right-2.5 top-2.5 pointer-events-none" />
+              </div>
+            </div>
+          </div>
+
+          {/* Row 3: Applied FX rate & Net amount disbursed */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-[#16213A] mb-1">
+                Applied FX rate
+              </label>
+              <input
+                type="text"
+                value={fxRate}
+                onChange={(e) => setFxRate(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-[#DDD8CC] rounded-lg text-xs font-mono text-right text-[#16213A] focus:outline-none focus:border-[#0E6466]"
+              />
+              <span className="text-[10px] text-[#5A6672] mt-1 block">
+                Same currency as the grant
+              </span>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-[#16213A] mb-1">
+                Net amount disbursed (USD) <span className="text-[#C53030]">*</span>
+              </label>
+              <input
+                type="text"
+                value={netAmount}
+                onChange={(e) => setNetAmount(e.target.value)}
+                className="w-full px-3 py-2 bg-white border-2 border-[#C53030] rounded-lg text-xs font-mono font-semibold text-right text-[#16213A] focus:outline-none"
+              />
+              {variance > 0 && (
+                <div className="flex items-center gap-1 text-[11px] text-[#C53030] mt-1">
+                  <span className="w-3.5 h-3.5 rounded-full border border-[#C53030] flex items-center justify-center text-[10px] font-bold">⊗</span>
+                  <span>{variance.toFixed(2)} less than authorised. Add an explanation.</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Row 4: Explanation for difference */}
+          <div>
+            <label className="block text-xs font-medium text-[#16213A] mb-1">
+              Explanation for difference
+            </label>
+            <input
+              type="text"
+              value={explanation}
+              onChange={(e) => setExplanation(e.target.value)}
+              className="w-full px-3 py-2 bg-white border border-[#DDD8CC] rounded-lg text-xs text-[#16213A] focus:outline-none focus:border-[#0E6466]"
+              placeholder="e.g. Intermediary bank fee deducted"
+            />
+          </div>
+
+          {/* Row 5: Bank confirmation attachment */}
+          <div>
+            <label className="block text-xs font-medium text-[#16213A] mb-1">
+              Bank confirmation <span className="text-[#C53030]">*</span>
+            </label>
+            {attachedFile ? (
+              <div className="flex items-center justify-between p-2.5 rounded-lg border border-[#DDD8CC] bg-[#F7F5F0]">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-[#E8F5E9] text-[#2E7D32]">
+                    <Check className="w-3 h-3" /> Attached
+                  </span>
+                  <span className="font-mono text-xs text-[#16213A]">{attachedFile.name}</span>
+                  <span className="text-[11px] text-[#5A6672]">· {attachedFile.size}</span>
+                </div>
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={confirmationState === 'confirming'}
-                  className="w-full px-4 py-6 flex flex-col items-center text-center gap-2 disabled:opacity-60"
+                  onClick={() => setAttachedFile(null)}
+                  className="text-xs font-semibold text-[#16213A] hover:underline"
                 >
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
-                    <UploadCloud className="w-5 h-5" />
-                  </span>
-                  <span className="text-xs font-semibold text-slate-800 dark:text-slate-100">
-                    {proofFile ? 'Choose a different document' : 'Drop bank proof here or click to upload'}
-                  </span>
-                  <span className="text-[10px] text-slate-500">
-                    The confirmation memo is attached to the tranche audit record.
-                  </span>
+                  Replace
                 </button>
+              </div>
+            ) : (
+              <div className="border border-dashed border-[#DDD8CC] rounded-lg p-4 text-center bg-[#FAF9F5]">
+                <p className="text-xs text-[#5A6672]">Upload Swift MT103, Fedwire receipt or bank advice</p>
                 <input
-                  ref={fileInputRef}
                   type="file"
-                  accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
-                  onChange={handleFileChange}
+                  id="bankFile"
                   className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) setAttachedFile({ name: f.name, size: `${Math.round(f.size / 1024)} KB` });
+                  }}
                 />
+                <label
+                  htmlFor="bankFile"
+                  className="mt-2 inline-block px-3 py-1 bg-white border border-[#DDD8CC] rounded text-xs font-medium text-[#16213A] cursor-pointer hover:bg-slate-50"
+                >
+                  Choose file
+                </label>
+              </div>
+            )}
+          </div>
+
+          {/* Buttons: Save draft & Confirm reconciliation */}
+          <div className="pt-4 flex items-center justify-between border-t border-[#DDD8CC]">
+            <button
+              type="button"
+              className="px-4 py-2 border border-[#DDD8CC] rounded-lg text-xs font-semibold text-[#16213A] hover:bg-[#FAF9F5] transition"
+            >
+              Save draft
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirm}
+              className="px-5 py-2 bg-[#0E6466] hover:bg-[#0b4d4f] text-white text-xs font-semibold rounded-lg shadow-sm transition"
+            >
+              Confirm reconciliation
+            </button>
+          </div>
+        </div>
+
+        {/* Right Sidebar Cards */}
+        <div className="space-y-5">
+          {/* Automatic checks Card */}
+          <div className="bg-white rounded-xl border border-[#DDD8CC] p-5 shadow-sm space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#16213A]">Automatic checks</h3>
+            
+            <div className="space-y-3">
+              <div className="flex items-start gap-2.5">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-[#E8F5E9] text-[#2E7D32] shrink-0 mt-0.5">
+                  <Check className="w-3 h-3" /> Pass
+                </span>
+                <span className="text-xs text-[#5A6672]">
+                  Reference not used on any other payout
+                </span>
               </div>
 
-              {proofStatus === 'uploading' && (
-                <div className="mt-3 rounded-lg border border-slate-200 dark:border-slate-700 p-3">
-                  <div className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-300">
-                    <span className="inline-flex items-center gap-1.5">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading {proofFile?.name}
-                    </span>
-                    <span className="font-mono">{uploadProgress}%</span>
-                  </div>
-                  <div className="mt-2 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-emerald-500 transition-all duration-200"
-                      style={{ width: `${uploadProgress}%` }}
-                    />
-                  </div>
-                </div>
-              )}
+              <div className="flex items-start gap-2.5">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-[#E8F5E9] text-[#2E7D32] shrink-0 mt-0.5">
+                  <Check className="w-3 h-3" /> Pass
+                </span>
+                <span className="text-xs text-[#5A6672]">
+                  Date is on or after the approval
+                </span>
+              </div>
 
-              {proofStatus === 'error' && proofError && (
-                <p className="mt-2 flex items-start gap-1.5 text-[11px] text-rose-600 dark:text-rose-400">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                  {proofError}
-                </p>
-              )}
+              <div className="flex items-start gap-2.5">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-[#FEF3C7] text-[#B45309] shrink-0 mt-0.5">
+                  <AlertTriangle className="w-3 h-3" /> Note
+                </span>
+                <span className="text-xs text-[#5A6672]">
+                  Amount within 0.1% of authorised
+                </span>
+              </div>
 
-              {proofStatus === 'ready' && proofPreviewUrl && proofFile && (
-                <div className="mt-3 rounded-lg border border-emerald-200 dark:border-emerald-800 overflow-hidden">
-                  <div className="flex items-center justify-between gap-3 p-3 bg-emerald-50 dark:bg-emerald-950/30">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <FileCheck2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <div className="min-w-0">
-                        <p className="truncate text-xs font-semibold text-slate-800 dark:text-slate-100">
-                          {proofFile.name}
-                        </p>
-                        <p className="text-[10px] text-slate-500">
-                          {formatFileSize(proofFile.size)} · Uploaded and ready to attach
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={resetProofState}
-                      className="shrink-0 p-1.5 rounded-md text-slate-500 hover:bg-white dark:hover:bg-slate-800 transition"
-                      aria-label="Remove bank proof"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <div className="h-40 bg-slate-100 dark:bg-slate-800 border-t border-emerald-200 dark:border-emerald-800">
-                    {proofFile.type === 'application/pdf' ? (
-                      <object data={proofPreviewUrl} type="application/pdf" className="h-full w-full">
-                        <a href={proofPreviewUrl} target="_blank" rel="noreferrer" className="p-4 block text-emerald-700">
-                          Open PDF preview
-                        </a>
-                      </object>
-                    ) : (
-                      <img
-                        src={proofPreviewUrl}
-                        alt="Bank confirmation preview"
-                        className="h-full w-full object-contain"
-                      />
-                    )}
-                  </div>
-                  <a
-                    href={proofPreviewUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block border-t border-emerald-200 dark:border-emerald-800 px-3 py-2 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
-                  >
-                    Open full preview
-                  </a>
-                </div>
-              )}
+              <div className="flex items-start gap-2.5">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-[#E8F5E9] text-[#2E7D32] shrink-0 mt-0.5">
+                  <Check className="w-3 h-3" /> Pass
+                </span>
+                <span className="text-xs text-[#5A6672]">
+                  Confirmation document fingerprinted
+                </span>
+              </div>
             </div>
+          </div>
 
-            <div className="flex items-start gap-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 p-3 text-[11px] text-slate-600 dark:text-slate-300">
-              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-              Confirming attaches this document to the audit record, credits the grantee ledger and evaluates the next
-              tranche for release.
-            </div>
-
-            {formError && (
-              <p className="flex items-start gap-1.5 text-[11px] text-rose-600 dark:text-rose-400">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                {formError}
-              </p>
-            )}
-
-            <div className="pt-4 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={closeModal}
-                disabled={confirmationState === 'confirming'}
-                className="px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={proofStatus !== 'ready' || confirmationState === 'confirming'}
-                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold rounded-lg inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {confirmationState === 'confirming' ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" /> Confirming reconciliation…
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" /> Confirm Wire Reconciliation
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
+          {/* On confirm Card */}
+          <div className="bg-white rounded-xl border border-[#DDD8CC] p-5 shadow-sm space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#16213A]">On confirm</h3>
+            
+            <ul className="text-xs text-[#5A6672] space-y-2 list-disc pl-4 leading-relaxed">
+              <li>
+                Tranche 2 becomes <strong className="text-[#16213A]">Disbursed & reconciled</strong>
+              </li>
+              <li>
+                Tembo is notified to record the receipt in their ledger
+              </li>
+              <li>
+                Tranche 3 unlocks once M-4 is verified (it already is)
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
