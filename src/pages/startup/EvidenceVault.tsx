@@ -5,16 +5,10 @@ import {
   Check, 
   Clock, 
   UploadCloud, 
-  ArrowRight,
-  ArrowLeft,
-  Lock,
-  Download,
-  Search,
-  Eye,
-  Trash2,
-  FileText
+  Lock
 } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { DiscussionThreadPanel } from '../../components/common/DiscussionThreadPanel';
 
 export const EvidenceVault: React.FC = () => {
   const navigate = useNavigate();
@@ -561,6 +555,12 @@ export const EvidenceVault: React.FC = () => {
                 <div>05 Nov 09:03 · Viewed · Grace M.</div>
               </div>
             </div>
+
+            <DiscussionThreadPanel
+              targetType="RECEIPT"
+              targetId="doc-5"
+              subject="AWS-Oct-2026.pdf"
+            />
           </div>
         </div>
       </div>

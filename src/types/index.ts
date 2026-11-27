@@ -10,6 +10,29 @@ export interface User {
   organizationName: string;
 }
 
+export type DiscussionTargetType = 'RECEIPT' | 'LINE_ITEM';
+export type DiscussionThreadStatus = 'OPEN' | 'RESOLVED';
+
+export interface DiscussionReply {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorRole: UserRole;
+  body: string;
+  createdAt: string;
+}
+
+export interface DiscussionThread {
+  id: string;
+  targetType: DiscussionTargetType;
+  targetId: string;
+  subject: string;
+  status: DiscussionThreadStatus;
+  createdAt: string;
+  updatedAt: string;
+  replies: DiscussionReply[];
+}
+
 export type TrancheStatus = 
   | 'DRAFT'
   | 'ACTIVE'

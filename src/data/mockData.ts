@@ -1,6 +1,7 @@
 import { 
   User, Grant, Tranche, Milestone, Transaction, 
-  DocumentEvidence, BudgetCategory, SubmissionPackage, NotificationItem 
+  DocumentEvidence, BudgetCategory, SubmissionPackage, NotificationItem,
+  DiscussionThread
 } from '../types';
 
 export const DEMO_USERS: Record<string, User> = {
@@ -543,5 +544,89 @@ export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
     timestamp: '2 days ago',
     read: true,
     actionUrl: '/startup/milestones'
+  }
+];
+
+export const INITIAL_DISCUSSION_THREADS: DiscussionThread[] = [
+  {
+    id: 'thread-je-0318',
+    targetType: 'LINE_ITEM',
+    targetId: 'JE-0318',
+    subject: 'JE-0318 · Soil probes batch #4',
+    status: 'OPEN',
+    createdAt: '2026-11-19T08:12:00.000Z',
+    updatedAt: '2026-11-19T09:06:00.000Z',
+    replies: [
+      {
+        id: 'reply-je-0318-1',
+        authorId: 'user-inst-01',
+        authorName: 'Marcus Vance',
+        authorRole: 'INSTITUTION_OFFICER',
+        body: 'Invoice OCR shows $4,100.00, but the claim is $4,120.00. Please confirm the extra $20.00 or correct the line.',
+        createdAt: '2026-11-19T08:12:00.000Z'
+      },
+      {
+        id: 'reply-je-0318-2',
+        authorId: 'user-startup-01',
+        authorName: 'Elena Rostova',
+        authorRole: 'STARTUP_FOUNDER',
+        body: 'Checking the supplier invoice now. I will either correct the entry or upload the missing surcharge receipt.',
+        createdAt: '2026-11-19T09:06:00.000Z'
+      }
+    ]
+  },
+  {
+    id: 'thread-doc-5',
+    targetType: 'RECEIPT',
+    targetId: 'doc-5',
+    subject: 'AWS-Oct-2026.pdf',
+    status: 'OPEN',
+    createdAt: '2026-11-20T10:24:00.000Z',
+    updatedAt: '2026-11-20T11:02:00.000Z',
+    replies: [
+      {
+        id: 'reply-doc-5-1',
+        authorId: 'user-inst-01',
+        authorName: 'Marcus Vance',
+        authorRole: 'INSTITUTION_OFFICER',
+        body: 'The Tax / VAT field is blank and OCR confidence is low. Please enter the tax amount or mark it as none.',
+        createdAt: '2026-11-20T10:24:00.000Z'
+      },
+      {
+        id: 'reply-doc-5-2',
+        authorId: 'user-startup-01',
+        authorName: 'Elena Rostova',
+        authorRole: 'STARTUP_FOUNDER',
+        body: 'Cloud hosting is exempt from VAT in this jurisdiction. I will add that note to the invoice metadata.',
+        createdAt: '2026-11-20T11:02:00.000Z'
+      }
+    ]
+  },
+  {
+    id: 'thread-doc-101',
+    targetType: 'RECEIPT',
+    targetId: 'doc-101',
+    subject: 'Spectrometry_Equip_Invoice_9821.pdf',
+    status: 'RESOLVED',
+    createdAt: '2026-11-12T14:10:00.000Z',
+    updatedAt: '2026-11-13T08:30:00.000Z',
+    replies: [
+      {
+        id: 'reply-doc-101-1',
+        authorId: 'user-inst-01',
+        authorName: 'Marcus Vance',
+        authorRole: 'INSTITUTION_OFFICER',
+        body: 'Please confirm the lease term so this can be checked against the equipment cap.',
+        createdAt: '2026-11-12T14:10:00.000Z'
+      },
+      {
+        id: 'reply-doc-101-2',
+        authorId: 'user-startup-01',
+        authorName: 'Elena Rostova',
+        authorRole: 'STARTUP_FOUNDER',
+        body: 'Confirmed: 12-month operating lease beginning 1 Nov 2026.',
+        createdAt: '2026-11-13T08:30:00.000Z'
+      }
+    ]
   }
 ];

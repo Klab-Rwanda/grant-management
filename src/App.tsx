@@ -27,11 +27,7 @@ import { TeamRolesPage } from './pages/startup/TeamRolesPage';
 import { BankImportPage } from './pages/startup/BankImportPage';
 import { IntegrationsPage } from './pages/startup/IntegrationsPage';
 import { GrantOfferAcceptancePage } from './pages/startup/GrantOfferAcceptancePage';
-<<<<<<< HEAD
-=======
 import { AccountingLedger } from './pages/startup/AccountingLedger';
-import { GrantSetupWizard } from './pages/institution/GrantSetupWizard';
->>>>>>> a4c34438ce9c0ef70cfaffb491d1fbc10c561faf
 import { InstitutionDashboard } from './pages/institution/InstitutionDashboard';
 import { GrantPrograms, ProgramDetail, StartupPortfolio } from './pages/institution/ProgramsAndPortfolio';
 import { FinancialReviewCenter, ApprovalManagement } from './pages/institution/ReviewAndApproval';

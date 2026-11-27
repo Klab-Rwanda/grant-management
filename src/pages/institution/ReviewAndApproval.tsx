@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
 import { 
-  CheckCircle2, 
   AlertTriangle, 
-  FileText, 
-  Eye, 
-  ArrowRight,
   ChevronDown,
   Clock,
   Check,
   X,
-  Lock
+  MessageSquare
 } from 'lucide-react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useApp } from '../../context/AppContext';
+import { DiscussionThreadPanel } from '../../components/common/DiscussionThreadPanel';
 
 // ----------------------------------------------------------------------------
 // D-07: Verification report · Tembo Agritech · Tranche 2
@@ -273,7 +271,6 @@ export const VerificationReportPage: React.FC = () => {
 // D-05: Review queue screen
 // ----------------------------------------------------------------------------
 export const ReviewQueuePage: React.FC = () => {
-  const navigate = useNavigate();
   const [programFilter, setProgramFilter] = useState('All programs');
   const [statusFilter, setStatusFilter] = useState('Needs my review');
 
@@ -527,6 +524,7 @@ export const ReviewQueuePage: React.FC = () => {
 // D-06: Line-item review
 // ----------------------------------------------------------------------------
 export const LineItemReviewPage: React.FC = () => {
+  const { discussionThreads } = useApp();
   const [filter, setFilter] = useState('Pending first');
   const [selectedItemKey, setSelectedItemKey] = useState('JE-0318');
   
@@ -545,6 +543,7 @@ export const LineItemReviewPage: React.FC = () => {
     { key: 'JE-0233', title: 'Sensor kits ×12', amount: '6,240.00', cat: 'Equipment', status: 'Approved' },
     { key: 'JE-0270', title: 'Gateway routers', amount: '3,520.00', cat: 'Equipment', status: 'Approved' },
   ];
+  const selectedItem = lineItems.find(item => item.key === selectedItemKey) ?? lineItems[1];
 
   const handleSaveNext = () => {
     setIsSaved(true);
@@ -655,6 +654,16 @@ export const LineItemReviewPage: React.FC = () => {
                       <Clock className="w-3 h-3" /> Pending
                     </span>
                   )}
+                  {(() => {
+                    const openThreads = discussionThreads.filter(
+                      thread => thread.targetType === 'LINE_ITEM' && thread.targetId === item.key && thread.status === 'OPEN'
+                    ).length;
+                    return openThreads > 0 ? (
+                      <span className="inline-flex items-center gap-1 text-[#1D4ED8] font-medium">
+                        <MessageSquare className="w-3 h-3" /> {openThreads}
+                      </span>
+                    ) : null;
+                  })()}
                 </div>
               </div>
             ))}
@@ -668,10 +677,10 @@ export const LineItemReviewPage: React.FC = () => {
               <div>
                 <span className="text-xs font-mono text-[#5A6275]">Claimed line</span>
                 <h3 className="text-base font-bold text-[#16213A] mt-0.5">
-                  JE-0318 · Soil probes batch #4
+                  {selectedItemKey} · {selectedItem.title}
                 </h3>
               </div>
-              <span className="font-mono text-lg font-bold text-[#16213A]">$4,120.00</span>
+              <span className="font-mono text-lg font-bold text-[#16213A]">${selectedItem.amount}</span>
             </div>
 
             {/* Comparison Table */}
@@ -777,7 +786,7 @@ export const LineItemReviewPage: React.FC = () => {
               <div className="pt-2 flex items-center justify-between">
                 {isSaved ? (
                   <span className="text-xs font-semibold text-[#0E6466]">
-                    ✓ Decision recorded for JE-0318!
+                    ✓ Decision recorded for {selectedItemKey}!
                   </span>
                 ) : (
                   <span></span>
@@ -791,6 +800,12 @@ export const LineItemReviewPage: React.FC = () => {
               </div>
             </div>
           </div>
+
+          <DiscussionThreadPanel
+            targetType="LINE_ITEM"
+            targetId={selectedItemKey}
+            subject={`${selectedItemKey} · ${selectedItem.title}`}
+          />
         </div>
       </div>
     </div>

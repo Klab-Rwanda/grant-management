@@ -2,12 +2,12 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { 
   User, UserRole, Grant, Tranche, Milestone, Transaction, 
   DocumentEvidence, BudgetCategory, SubmissionPackage, NotificationItem,
-  RejectionReasonCode, TrancheStatus
+  RejectionReasonCode, TrancheStatus, DiscussionThread, DiscussionTargetType
 } from '../types';
 import { 
   DEMO_USERS, INITIAL_GRANTS, INITIAL_TRANCHES, INITIAL_MILESTONES, 
   INITIAL_BUDGET_CATEGORIES, INITIAL_DOCUMENTS, INITIAL_TRANSACTIONS, 
-  INITIAL_SUBMISSIONS, INITIAL_NOTIFICATIONS 
+  INITIAL_SUBMISSIONS, INITIAL_NOTIFICATIONS, INITIAL_DISCUSSION_THREADS
 } from '../data/mockData';
 
 interface AppContextType {
@@ -56,6 +56,11 @@ interface AppContextType {
   ) => void;
   reconcileDisbursement: (trancheId: string, paymentRef: string, transferDate: string, amount: number, exchangeRate: number, bankProofUrl: string) => void;
 
+  // Discussion threads
+  discussionThreads: DiscussionThread[];
+  addDiscussionReply: (targetType: DiscussionTargetType, targetId: string, subject: string, body: string) => void;
+  setDiscussionThreadResolved: (threadId: string, resolved: boolean) => void;
+
   // Notifications
   notifications: NotificationItem[];
   markNotificationAsRead: (id: string) => void;
@@ -81,6 +86,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [milestones, setMilestones] = useState<Milestone[]>(INITIAL_MILESTONES);
   const [budgetCategories, setBudgetCategories] = useState<BudgetCategory[]>(INITIAL_BUDGET_CATEGORIES);
   const [submissions, setSubmissions] = useState<SubmissionPackage[]>(INITIAL_SUBMISSIONS);
+  const [discussionThreads, setDiscussionThreads] = useState<DiscussionThread[]>(INITIAL_DISCUSSION_THREADS);
   const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
 
   useEffect(() => {
@@ -330,6 +336,60 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
+  const addDiscussionReply = (
+    targetType: DiscussionTargetType,
+    targetId: string,
+    subject: string,
+    body: string
+  ) => {
+    const timestamp = new Date().toISOString();
+    const reply = {
+      id: `reply-${Date.now()}`,
+      authorId: currentUser.id,
+      authorName: currentUser.name,
+      authorRole: currentUser.role,
+      body,
+      createdAt: timestamp
+    };
+
+    setDiscussionThreads(prev => {
+      const existingIndex = prev.findIndex(
+        thread => thread.targetType === targetType && thread.targetId === targetId
+      );
+
+      if (existingIndex === -1) {
+        return [...prev, {
+          id: `thread-${Date.now()}`,
+          targetType,
+          targetId,
+          subject,
+          status: 'OPEN',
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          replies: [reply]
+        }];
+      }
+
+      return prev.map((thread, index) => index === existingIndex
+        ? {
+            ...thread,
+            subject,
+            status: 'OPEN',
+            updatedAt: timestamp,
+            replies: [...thread.replies, reply]
+          }
+        : thread
+      );
+    });
+  };
+
+  const setDiscussionThreadResolved = (threadId: string, resolved: boolean) => {
+    setDiscussionThreads(prev => prev.map(thread => thread.id === threadId
+      ? { ...thread, status: resolved ? 'RESOLVED' : 'OPEN' }
+      : thread
+    ));
+  };
+
   const markNotificationAsRead = (id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
   };
@@ -362,6 +422,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       reviewLineItem,
       submitTranchePackage,
       reconcileDisbursement,
+      discussionThreads,
+      addDiscussionReply,
+      setDiscussionThreadResolved,
       notifications,
       markNotificationAsRead
     }}>
